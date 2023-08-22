@@ -39,8 +39,10 @@
 <%
         imageStream.close();
     } catch (MinioException e) {
+            response.setStatus(HttpServletResponse.SC_BAD_REQUEST); // 400
         out.println("Error retrieving image from MinIO: " + e.getMessage());
     } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR); // 500
         out.println("An error occurred: " + e.getMessage());
     }
 %>
