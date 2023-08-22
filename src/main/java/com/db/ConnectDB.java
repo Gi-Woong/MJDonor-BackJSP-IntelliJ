@@ -101,7 +101,7 @@ public class ConnectDB {
     }
 
     // 기부 등록 페이지
-    public String performRegister(String name, String description, int target_point, String start_date, String end_date, String image1, String image2, String category, int ORGANIZATION_ID, int REGISTRANT_ID) {
+    public String performRegister(String name, String description, int target_point, String start_date, String end_date, String image1, String image2, String category, int ORGANIZATION_ID, int REGISTRANT_ID, String contract_address) {
         Connection conn = null;
         PreparedStatement pstmt = null;
         String resultMessage = "";
@@ -124,23 +124,24 @@ public class ConnectDB {
             int current_point = 0;
 
             // Example: Insert registration data into the database
-            String sql = "INSERT INTO PROJECT (p_id, name, description, target_point, start_date, end_date, image1, image2, category, ORGANIZATION_ID, REGISTRANT_ID, current_point, success) " +
-                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+            String sql = "INSERT INTO PROJECT (p_id, name, description, target_point, start_date, end_date, image1, image2, category, ORGANIZATION_ID, REGISTRANT_ID, current_point, success, contract_address) " +
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
             pstmt = conn.prepareStatement(sql);
 
             pstmt.setInt(1, new_p_id);
             pstmt.setString(2, name);
             pstmt.setString(3, description);
             pstmt.setInt(4, target_point);
-            pstmt.setString(5, start_date);
-            pstmt.setString(6, end_date);
+            pstmt.setDate(5, java.sql.Date.valueOf(start_date));
+            pstmt.setDate(6, java.sql.Date.valueOf(end_date));
             pstmt.setString(7, image1);
             pstmt.setString(8, image2);
             pstmt.setString(9, category);
             pstmt.setInt(10, ORGANIZATION_ID);
             pstmt.setInt(11, REGISTRANT_ID);
             pstmt.setInt(12, current_point);
-            pstmt.setInt(13, success);;
+            pstmt.setInt(13, success);
+            pstmt.setString(14, contract_address);
 
             int rowsAffected = pstmt.executeUpdate();
             if (rowsAffected > 0) {
