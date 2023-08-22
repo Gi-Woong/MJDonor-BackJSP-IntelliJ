@@ -12,7 +12,12 @@ public class ConnectDB {
     public static ConnectDB getInstance() {
         return instance;
     }
-    public ConnectDB() {  }
+    public ConnectDB() {
+        java.util.ResourceBundle resource = java.util.ResourceBundle.getBundle("config");
+        jdbcUrl = resource.getString("oracledb.jdbcUrl");
+        userOId = resource.getString("oracledb.userOId");
+        userPw = resource.getString("oracledb.userPw");
+    }
 
     // oracle 계정
     String jdbcUrl;
@@ -30,10 +35,6 @@ public class ConnectDB {
 
     public String connectionDB(String id, String pwd) { // 테스트 코드
         try {
-            java.util.ResourceBundle resource = java.util.ResourceBundle.getBundle("config");
-            jdbcUrl = resource.getString("oracledb.jdbcUrl");
-            userOId = resource.getString("oracledb.userOId");
-            userPw = resource.getString("oracledb.userPw");
             Class.forName("oracle.jdbc.driver.OracleDriver");
             conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
 
