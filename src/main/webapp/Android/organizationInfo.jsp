@@ -5,11 +5,8 @@
 
     // 한글 인코딩 부분
     request.setCharacterEncoding("utf-8");
-
-    // Check if a specific u_id exists
-    String u_id = request.getParameter("u_id");
-    if (u_id != null) {
-        boolean uIdExists = connectDB.checkUserIdExists(u_id);
-        out.println("u_id_exists: " + uIdExists);
-    }
+    
+    // Retrieve organization info
+    String orgInfo = connectDB.getOrganizationInfo();
+    out.println(orgInfo);
 %>

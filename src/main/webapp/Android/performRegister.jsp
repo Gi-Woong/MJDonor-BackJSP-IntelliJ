@@ -51,11 +51,12 @@
 
     String resultMessage = connectDB.performRegister(name, description, target_point, start_date, end_date, image1, image2, category, ORGANIZATION_ID, REGISTRANT_ID, donationContractReceipt.getContractAddress());
 
-    JSONObject jsonObject = new JSONObject();
-    jsonObject.put("status", "success");
-    jsonObject.put("validation", "success");
-    jsonObject.put("donationContractAddress", donationContractReceipt.getTransactionHash())
+//    JSONObject jsonObject = new JSONObject();
+//    jsonObject.put("status", "success");
+//    jsonObject.put("validation", "success");
+//    jsonObject.put("donationContract Deploy Hash", donationContractReceipt.getTransactionHash());
 
     // 안드로이드로 전송
-    out.print(jsonObject.toJSONString());
+//    out.print(jsonObject.toJSONString());
+    out.print("Registration successful!");
 %>

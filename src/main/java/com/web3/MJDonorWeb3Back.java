@@ -15,8 +15,9 @@ public class MJDonorWeb3Back {
     private static final java.util.ResourceBundle resource = java.util.ResourceBundle.getBundle("config");
     private final static String nodeUrl = System.getenv().getOrDefault("WEB3J_NODE_URL", resource.getString("web3.networkUrl"));
     private final DefaultGasProvider defaultGasProvider = new DefaultGasProvider();
-    private DonationToken donationToken;
     private final Web3j web3j = Web3j.build(new HttpService(nodeUrl));
+    public final DonationToken donationToken;
+
 //   private static final String walletPassword = System.getenv().getOrDefault("WEB3J_WALLET_PASSWORD", "<wallet_password>");
 //   private static final String walletPath = System.getenv().getOrDefault("WEB3J_WALLET_PATH", "<wallet_path>");
     private final String account = resource.getString("web3.account");
@@ -24,12 +25,8 @@ public class MJDonorWeb3Back {
 
 
     public MJDonorWeb3Back() {
-//        nodeUrl = System.getenv().getOrDefault("WEB3J_NODE_URL", "http://127.0.0.1:8545");
-//        web3j = Web3j.build(new HttpService(nodeUrl));
-//        defaultGasProvider = new DefaultGasProvider();
-
-//        account = resource.getString("web3.account");
         this.credentials = Credentials.create(resource.getString("web3.privateKey"));
+        donationToken = DonationToken.load(resource.getString("web3.donationTokenAddress"), web3j, credentials, defaultGasProvider);
     }
 
     public TransactionReceipt deployDonationContract(String privateKey, String targetPoint, String donationPeriodInDays) throws Exception{
@@ -52,7 +49,7 @@ public class MJDonorWeb3Back {
                 defaultGasProvider,
                 donationToken.getContractAddress(),
                 BigInteger.valueOf(Long.parseLong(targetPoint)),
-                BigInteger.valueOf(Long.parseLong(donationPeriodInDays))).send();
+                BigInteger.valueOf(Long.parseLong(donationPeriodInDays))).sendAsync().get();
         System.out.println("Contract address: " + donationContract.getContractAddress());
         System.out.println("Transaction Receipt:"+ donationContract.getTransactionReceipt());
         return donationContract.getTransactionReceipt().get();

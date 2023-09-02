@@ -1,10 +1,21 @@
 package com.db;
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 public class ConnectDB {
     private static ConnectDB instance = new ConnectDB();
@@ -63,7 +74,35 @@ public class ConnectDB {
         return returns;
     }
 
-    public String performSignup(int u_id, String email, String name, String password, String wallet, String photo) { // 회원가입 코드
+    public boolean checkUserIdExists(String u_id) {
+        boolean uIdExists = false;
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "SELECT COUNT(*) AS u_id_count FROM users WHERE u_id = ?";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setString(1, u_id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                int uIdCount = rs.getInt("u_id_count");
+                uIdExists = uIdCount > 0;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return uIdExists;
+    }
+
+    public String performSignup(int u_id, String email, String name, String wallet, String photo) { // 회원가입 코드
         try {
             Class.forName("oracle.jdbc.driver.OracleDriver");
             conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
@@ -78,15 +117,14 @@ public class ConnectDB {
                 returns = "이미 존재하는 아이디 입니다.";
             } else {
                 // Insert the new user data into the database
-                sql2 = "INSERT INTO users (email, password, name, u_id, wallet, photo) VALUES (?, ?, ?, ?, ?, ?)";
+                sql2 = "INSERT INTO users (email,  name, u_id, wallet, photo) VALUES (?, ?, ?, ?, ?)";
                 pstmt2 = conn.prepareStatement(sql2);
 
                 pstmt2.setString(1, email);
-                pstmt2.setString(2, password);
-                pstmt2.setString(3, name);
-                pstmt2.setInt(4, u_id);
-                pstmt2.setString(5, wallet);
-                pstmt2.setString(6, photo);
+                pstmt2.setString(2, name);
+                pstmt2.setInt(3, u_id);
+                pstmt2.setString(4, wallet);
+                pstmt2.setString(5, photo);
                 pstmt2.executeUpdate();
                 returns = "회원 가입 성공 !";
             }
@@ -171,26 +209,40 @@ public class ConnectDB {
             Class.forName("oracle.jdbc.driver.OracleDriver");
             conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
 
-            sql = "SELECT p_name, image1, target_point, o_name FROM (" +
-                    "SELECT p.Name as p_name, p.image1, p.target_point, o.name as o_name, p.success, p.start_date " +
-                    "FROM project p " +
-                    "INNER JOIN organization o ON p.organization_id = o.o_id " +
-                    "ORDER BY p.p_id) " +
-                    "WHERE start_date < sysdate and success = 0 and ROWNUM <= 3";
+            sql = "SELECT p.p_id, p.ORGANIZATION_ID, p.name AS project_name, o.name AS organization_name, p.image1, p.image2, p.DESCRIPTION, p.start_date, p.end_date, p.target_point, p.current_point "
+                    + "FROM Project p "
+                    + "INNER JOIN ORGANIZATION o ON p.ORGANIZATION_ID = o.O_ID "
+                    + "WHERE p.start_date < sysdate AND p.success = 0 "//AND ROWNUM <= 3 "
+                    + "ORDER BY p.p_id";
 
             pstmt = conn.prepareStatement(sql);
             rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                String pName = rs.getString("p_name");
+                int p_id = rs.getInt("p_id");
+                int ORGANIZATION_ID = rs.getInt("ORGANIZATION_ID");
+                String project_name = rs.getString("project_name");
+                String organization_name = rs.getString("organization_name");
                 String image1 = rs.getString("image1");
-                double targetPoint = rs.getDouble("target_point");
-                String oName = rs.getString("o_name");
+                String image2 = rs.getString("image2");
+                String DESCRIPTION = rs.getString("DESCRIPTION");
+                String start_date = rs.getString("start_date");
+                String end_date = rs.getString("end_date");
+                double target_point = rs.getDouble("target_point");
+                double current_point = rs.getDouble("current_point");
 
-                result.append("Project Name: ").append(pName)
-                        .append(", Image: ").append(image1)
-                        .append(", Target Point: ").append(targetPoint)
-                        .append(", Organization Name: ").append(oName)
+                result.append("p_id: ").append(p_id)
+                        .append(", ORGANIZATION_ID ").append(ORGANIZATION_ID)
+                        .append(", Project Name: ").append(project_name)
+                        .append(", organization_name: ").append(organization_name)
+                        .append(", Image1: ").append(image1)
+                        .append(", Image2: ").append(image2)
+                        .append(", DESCRIPTION: ").append(DESCRIPTION)
+                        .append(", start_date: ").append(start_date)
+                        .append(", end_date: ").append(end_date)
+                        .append(", Target Point: ").append(target_point)
+                        .append(", current_point: ").append(current_point)
+                        .append("<br>")
                         .append("<br>");
             }
         } catch (Exception e) {
@@ -387,24 +439,40 @@ public class ConnectDB {
             Class.forName("oracle.jdbc.driver.OracleDriver");
             conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
 
-            sql = "SELECT p.NAME, o.NAME AS ORGANIZATION_NAME, p.IMAGE1, p.SUCCESS " +
-                    "FROM Project p " +
-                    "INNER JOIN ORGANIZATION o ON p.ORGANIZATION_ID = o.O_ID " +
-                    "ORDER BY p.SUCCESS, p.P_ID DESC";
+            String sql = "SELECT p.p_id, p.ORGANIZATION_ID, p.name AS project_name, o.name AS organization_name, p.image1, p.image2, p.DESCRIPTION, p.category, p.end_date, p.target_point, p.current_point "
+                    + "FROM Project p "
+                    + "INNER JOIN ORGANIZATION o ON p.ORGANIZATION_ID = o.O_ID "
+                    + "where p.success= 0" //and p.category = '저소득층'
+                    + "ORDER BY p.p_id";
 
             pstmt = conn.prepareStatement(sql);
             rs = pstmt.executeQuery();
 
             while (rs.next()) {
-                String projectName = rs.getString("NAME");
-                String organizationName = rs.getString("ORGANIZATION_NAME");
-                String image1 = rs.getString("IMAGE1");
-                int success = rs.getInt("SUCCESS");
+                int p_id = rs.getInt("p_id");
+                int ORGANIZATION_ID = rs.getInt("ORGANIZATION_ID");
+                String project_name = rs.getString("project_name");
+                String organization_name = rs.getString("organization_name");
+                String image1 = rs.getString("image1");
+                String image2 = rs.getString("image2");
+                String DESCRIPTION = rs.getString("DESCRIPTION");
+                String category = rs.getString("category");
+                String end_date = rs.getString("end_date");
+                double target_point = rs.getDouble("target_point");
+                double current_point = rs.getDouble("current_point");
 
-                result.append("Project Name: ").append(projectName)
-                        .append(", Organization Name: ").append(organizationName)
+                result.append("p_id: ").append(p_id)
+                        .append(", ORGANIZATION_ID ").append(ORGANIZATION_ID)
+                        .append(", Project Name: ").append(project_name)
+                        .append(", organization_name: ").append(organization_name)
                         .append(", Image1: ").append(image1)
-                        .append(", Success: ").append(success)
+                        .append(", Image2: ").append(image2)
+                        .append(", DESCRIPTION: ").append(DESCRIPTION)
+                        .append(", start_date: ").append(category)
+                        .append(", end_date: ").append(end_date)
+                        .append(", Target Point: ").append(target_point)
+                        .append(", current_point: ").append(current_point)
+                        .append("<br>")
                         .append("<br>");
             }
         } catch (Exception e) {
@@ -467,7 +535,7 @@ public class ConnectDB {
             Class.forName("oracle.jdbc.driver.OracleDriver");
             conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
 
-            sql = "SELECT p.Name, p.image1, o.name, d.deposit, d.vaccount, p.end_date, d.point, d.limit " +
+            sql = "SELECT p.Name, p.image1, o.name as oname, d.deposit, d.vaccount, p.end_date, d.point, d.limit, p.current_point, p.target_point " +
                     "FROM donation d " +
                     "INNER JOIN (project p " +
                     "            INNER JOIN organization o ON p.organization_id = o.o_id) " +
@@ -486,7 +554,9 @@ public class ConnectDB {
                 String vaccount = rs.getString("vaccount");
                 String endDate = rs.getString("end_date");
                 int point = rs.getInt("point");
-                int donationLimit = rs.getInt("limit");
+                Date donationLimit = rs.getDate("limit");
+                int currentPoint = rs.getInt("current_point");
+                int targetPoint = rs.getInt("target_point");
 
                 result.append("Project Name: ").append(projectName)
                         .append(", Image1: ").append(image1)
@@ -496,6 +566,8 @@ public class ConnectDB {
                         .append(", End Date: ").append(endDate)
                         .append(", Point: ").append(point)
                         .append(", Donation Limit: ").append(donationLimit)
+                        .append(", Current Point: ").append(currentPoint)
+                        .append(", Target Point: ").append(targetPoint)
                         .append("<br>");
             }
         } catch (Exception e) {
@@ -606,5 +678,594 @@ public class ConnectDB {
         return sumDonationPoint;
     }
 
+    public String getEmail(int u_id) { // 이메일 받아오기
+        String email = " ";
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "SELECT email " +
+                    "FROM users " +
+                    "WHERE u_id = ? ";
+
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, u_id);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                email = rs.getString(1);
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return email;
+    }
+
+
+    public JSONObject createVirtualAccount(String point, String email, String nick, String project, String due, String rbank, String r_a) throws Exception {
+        String path = "http://127.0.0.1/Samples";
+        String orderId = "virtualaccount-" + String.valueOf(System.currentTimeMillis());
+        String amount = String.valueOf(point); // :point로 android에서 입력
+        String customerEmail = email; // :email로 android에서 입력
+        String customerName = nick; // :nick로 android에서 입력
+        String orderName = project; //프로젝트명
+
+        String bank = replaceBankNames(rbank);
+        Date dueDate = java.sql.Date.valueOf(due); // 유효날짜 :limit
+        String dueDateStr = new SimpleDateFormat("yyyy-MM-dd").format(dueDate); // Convert Date to String
+        String virtualAccountCallbackUrl = path + "/va_callback.jsp";
+        String customerMobilePhone = "01024354951"; //핸드폰 번호인데 여기다 본인 핸드폰 번호넣으면 문자 감
+        String useEscrow = "false";
+
+        String type = "소득공제";
+        String registrationNumber = "01024354951";
+
+        String refundbank = bank; // 환불받을 계좌은행
+        String accountNumber = r_a; //환불받을 계좌번호
+        String holderName = "MJDonor";
+
+        String secretKey = "test_ak_ZORzdMaqN3wQd5k6ygr5AkYXQGwy:";
+
+        Base64.Encoder encoder = Base64.getEncoder();
+        byte[] encodedBytes = encoder.encode(secretKey.getBytes("UTF-8"));
+        String authorizations = "Basic " + new String(encodedBytes, 0, encodedBytes.length);
+
+        URL url = new URL("https://api.tosspayments.com/v1/virtual-accounts");
+
+        HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+        connection.setRequestProperty("Authorization", authorizations);
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestMethod("POST");
+        connection.setDoOutput(true);
+        JSONObject obj = new JSONObject();
+        obj.put("orderId", orderId);
+        obj.put("amount", amount);
+        obj.put("customerEmail", customerEmail);
+        obj.put("customerName", customerName);
+        obj.put("orderName", orderName);
+        obj.put("bank", bank);
+        obj.put("dueDate", dueDateStr);
+        obj.put("virtualAccountCallbackUrl", virtualAccountCallbackUrl);
+        obj.put("customerMobilePhone", customerMobilePhone);
+        obj.put("useEscrow", useEscrow);
+
+        System.out.println("orderId: " + orderId);
+        System.out.println("amount: " + amount);
+        System.out.println("customerEmail: " + customerEmail);
+        System.out.println("customerName: " + customerName);
+        System.out.println("orderName: " + orderName);
+        System.out.println("bank: " + bank);
+        System.out.println("accountNumber: " + useEscrow);
+        System.out.println("dueDate: " + dueDateStr);
+        System.out.println("virtualAccountCallbackUrl: " + virtualAccountCallbackUrl);
+        System.out.println("customerMobilePhone: " + customerMobilePhone);
+        System.out.println("useEscrow: " + useEscrow);
+
+        System.out.println("obj: " + obj);
+
+        JSONObject cashReceipt = new JSONObject();
+        cashReceipt.put("type", type);
+        cashReceipt.put("registrationNumber", registrationNumber);
+
+        obj.put("cashReceipt", cashReceipt);
+
+
+        JSONObject refundReceiveAccount = new JSONObject();
+        refundReceiveAccount.put("bank", bank);
+        refundReceiveAccount.put("accountNumber", r_a);
+        refundReceiveAccount.put("holderName", holderName);
+
+        obj.put("refundReceiveAccount", refundReceiveAccount);
+
+
+        int code = connection.getResponseCode();
+        boolean isSuccess = code == 200;
+
+        InputStream responseStream = isSuccess ? connection.getInputStream() : connection.getErrorStream();
+
+        Reader reader = new InputStreamReader(responseStream, StandardCharsets.UTF_8);
+        JSONParser parser = new JSONParser();
+        JSONObject jsonObject = (JSONObject) parser.parse(reader);
+        responseStream.close();
+
+        return jsonObject;
+    }
+
+    public static String replaceBankNames(String input) {
+        String result = input.replace("하나은행", "하나")
+                .replace("농협은행", "농협");
+        return result;
+    }
+
+    public String getRefundInfo() { // 환불해야할 donation 정보를 프로젝트명과 같이 불러
+        StringBuilder result = new StringBuilder();
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "select name, NICKNAME, DONATE_DATE, VACCOUNT, LIMIT "
+                    + "from donation d inner join project p on d.p_id = p.p_id"
+                    + "where refund_state =1";
+
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                String pName = rs.getString("name");
+                String nick = rs.getString("NICKNAME");
+                String DONATE_DATE = rs.getString("DONATE_DATE");
+                String VACCOUNT = rs.getString("VACCOUNT");
+                String LIMIT = rs.getString("LIMIT");
+
+                result.append("Project Name: ").append(pName)
+                        .append(", NICKNAME: ").append(nick)
+                        .append(", DONATE DATE: ").append(DONATE_DATE)
+                        .append(", VACCOUNT: ").append(VACCOUNT)
+                        .append(", LIMIT: ").append(LIMIT)
+                        .append("<br>");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return result.toString();
+    }
+
+    public String updateRefund() { // refund_state 업데이트 함수
+        String resultMessage = "";
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+
+            sql = "update donation "
+                    + "set refund_state = 2 "
+                    + "where refund_state =1";
+
+            pstmt = conn.prepareStatement(sql);
+
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                resultMessage = "refund_state 업데이트!";
+            } else {
+                resultMessage = "변화 없음!";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (pstmt != null)try {pstmt.close();} catch (SQLException ex) {}
+            if (conn != null)try {conn.close();    } catch (SQLException ex) {    }
+        }
+        return resultMessage;
+
+
+    }
+
+    public String performDonation(int u_id, int p_id, String nick, String point, String rbank, String refund, String msg, String v_a, String limit) {
+        // 기부하기 데이터 삽입
+        String resultMessage = "";
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            String sql = "INSERT INTO DONATION (USER_ID, P_ID, DONATE_DATE, NICKNAME, POINT, REFUND, MSG, RBANK, VACCOUNT, LIMIT, DEPOSIT, REFUND_STATE) " +
+                    "VALUES (?, ?, sysdate, ?, ?, ?, ?, ?, ?, ?, 0, 0)";
+            // U_ID, P_ID, ?, ?, NICK, CO_POINT, REFUND, MSG, RBANK, V_A, LINIT, 0, 0
+
+            int convertedPoint = Integer.parseInt(point);
+
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, u_id);
+            pstmt.setInt(2, p_id);
+            pstmt.setString(3, nick);
+            pstmt.setInt(4, convertedPoint);
+            pstmt.setString(5, refund);
+            pstmt.setString(6, msg);
+            pstmt.setString(7, rbank);
+            pstmt.setString(8, v_a);
+            pstmt.setDate(9, java.sql.Date.valueOf(limit));
+
+            System.out.println("sql: " + sql);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                resultMessage = "donation 등록!";
+            } else {
+                resultMessage = "실패!";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (pstmt != null)try {pstmt.close();} catch (SQLException ex) {}
+            if (conn != null)try {conn.close();    } catch (SQLException ex) {    }
+        }
+        return resultMessage;
+    }
+
+
+    public String deposit(String v_a) { // 입금 시 입금 상태 업데이트 함수
+        String resultMessage = "";
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "UPDATE Donation "
+                    + "SET Deposit = 1 "
+                    + "WHERE VACCOUNT = ?;";
+            pstmt = conn.prepareStatement(sql);
+
+            pstmt.setString(1, v_a);
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                resultMessage = "deposit 업데이트!";
+            } else {
+                resultMessage = "변화 없음!";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (pstmt != null)try {pstmt.close();} catch (SQLException ex) {}
+            if (conn != null)try {conn.close();    } catch (SQLException ex) {    }
+        }
+        return returns;
+
+    }
+
+    public Map<String, Object> getPointBlockchain(String v_a) { // 입금 시 입금 상태 업데이트 함수
+        Map<String, Object> resultJson = new HashMap<>();
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+            // TODO: 나중에 ORDER_ID로 수정 요망
+            String sql = "SELECT USERS.WALLET as wallet, DONATION.POINT as point " +
+                    "FROM USERS, DONATION " +
+                    "WHERE DONATION.USER_ID = USERS.U_ID and DONATION.VACCOUNT = ? and ROWNUM <=1 " +
+                    "ORDER BY DONATE_DATE DESC";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setNString(1, v_a);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                resultJson.put("wallet", rs.getString("wallet"));
+                resultJson.put("point",  rs.getInt("point"));
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace(); // 또는 로그 출력 등으로 대체
+        } finally {
+            try {
+                if (rs != null) rs.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+            try {
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+            try {
+                if (conn != null) conn.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+        }
+
+        return resultJson;
+    }
+
+    public Map<String, Object> confirmToBlockchain(String v_a) { // 입금 시 입금 상태 업데이트 함수
+        Map<String, Object> resultJson = new HashMap<>();
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+            // TODO: 나중에 ORDER_ID로 수정 요망
+            String sql = "SELECT DONATION.POINT as point, PROJECT.CONTRACT_ADDRESS as contract_address " +
+                    "FROM PROJECT, DONATION " +
+                    "WHERE PROJECT.P_ID = DONATION.P_ID AND DONATION.DEPOSIT = 1 and DONATION.VACCOUNT = ? and ROWNUM <= 1 " +
+                    "ORDER BY DONATION.DONATE_DATE DESC";
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setNString(1, v_a);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                resultJson.put("point",  rs.getInt("point"));
+                resultJson.put("contract_address", rs.getString("contract_address"));
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            e.printStackTrace(); // 또는 로그 출력 등으로 대체
+        } finally {
+            try {
+                if (rs != null) rs.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+            try {
+                if (pstmt != null) pstmt.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+            try {
+                if (conn != null) conn.close();
+            } catch (SQLException ex) {
+                ex.printStackTrace(); // 또는 로그 출력 등으로 대체
+            }
+        }
+
+        return resultJson;
+    }
+
+    public String updateCurrent(String v_a) { // 입금 시 현재 모금액 업데이트
+        String resultMessage = "";
+
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, userOId, userPw)) {
+            // Calculate new_p_id
+            int p_id = 0;
+            int point = 0;
+            String p_idSql = "SELECT P_ID, point FROM Donation where VACCOUNT = ?";
+            try (PreparedStatement p_idStmt = conn.prepareStatement(p_idSql)) {
+                p_idStmt.setString(1, v_a);
+                try (ResultSet resultSet = p_idStmt.executeQuery()) {
+                    if (resultSet.next()) {
+                        p_id = resultSet.getInt("p_id");
+                        point = resultSet.getInt("point");
+                    }
+                }
+            }
+
+            // Example: Insert registration data into the database
+            String sql = "UPDATE PROJECT SET CURRENT_ = CURRENT_POINT + ? WHERE P_ID = ?;";
+            try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                pstmt.setInt(1, point);
+                pstmt.setInt(2, p_id);
+
+                int rowsAffected = pstmt.executeUpdate();
+                if (rowsAffected > 0) {
+                    resultMessage = "현재 모금액 변화!";
+                } else {
+                    resultMessage = "현재 모금액 업데이트 실패!";
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            resultMessage = "An error occurred during update.";
+        }
+
+        return resultMessage;
+    }
+
+    public String updateSuccess(String v_a) { //현재 모금액 증가 시 프로젝트 성공체크 업데이트 함수
+        String resultMessage = "";
+
+        try (Connection conn = DriverManager.getConnection(jdbcUrl, userOId, userPw)) {
+            int p_id = -1;
+
+            String p_idSql = "SELECT P_ID FROM Donation where VACCOUNT = ?";
+            try (PreparedStatement p_idStmt = conn.prepareStatement(p_idSql)) {
+                p_idStmt.setString(1, v_a);
+                try (ResultSet resultSet = p_idStmt.executeQuery()) {
+                    if (resultSet.next()) {
+                        p_id = resultSet.getInt("p_id");
+                    }
+                }
+            }
+
+            int t_p = 0;
+            int c_p = -1;
+            String pointSql = "SELECT target_point, current_point FROM PROJECT WHERE P_ID = ?;";
+            try (PreparedStatement pointStmt = conn.prepareStatement(pointSql)) {
+                pointStmt.setInt(1, p_id);
+                try (ResultSet resultSet = pointStmt.executeQuery()) {
+                    if (resultSet.next()) {
+                        t_p = resultSet.getInt("target_point");
+                        c_p = resultSet.getInt("current_point");
+                    }
+                }
+            }
+
+            if (t_p <= c_p) {
+                String sql = "UPDATE PROJECT SET success = 1 WHERE P_ID = ?;";
+                try (PreparedStatement pstmt = conn.prepareStatement(sql)) {
+                    pstmt.setInt(1, p_id);
+                    int rowsAffected = pstmt.executeUpdate();
+                    if (rowsAffected > 0) {
+                        resultMessage = "프로젝트 성공 변화!";
+                    } else {
+                        resultMessage = "변화 없음!";
+                    }
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+            resultMessage = "An error occurred during update success.";
+        }
+
+        return resultMessage;
+    }
+
+    public double getTotalPointForProject(int projectId) { // 해당 프로젝트에 기부된 금액 총합
+        double totalPoint = 0.0;
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "SELECT SUM(point) AS total_point FROM Donation WHERE P_ID = ?";
+
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, projectId);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                totalPoint = rs.getDouble("total_point");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return totalPoint;
+    }
+
+
+    public String updateProject() { // 프로젝트 성공 실패 체크 및 업데이트 함수
+        String resultMessage = "";
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "UPDATE Project "
+                    + "SET SUCCESS = CASE "
+                    + "                 WHEN END_DATE < SYSDATE AND CURRENT_POINT < TARGET_POINT THEN '2' "
+                    + "                 ELSE SUCCESS "
+                    + "              END "
+                    + "WHERE SUCCESS = '0'; "
+                    + "DELETE FROM donation "
+                    + "WHERE deposit = 0 AND P_ID IN (SELECT P_ID FROM Project WHERE SUCCESS = '2'); "
+                    + "UPDATE donation d "
+                    + "SET d.refund_state = 1 "
+                    + "WHERE deposit = 1 AND refund_state = 0 and P_ID IN (SELECT P_ID FROM Project WHERE SUCCESS = '2');";
+            pstmt = conn.prepareStatement(sql);
+
+
+            int rowsAffected = pstmt.executeUpdate();
+            if (rowsAffected > 0) {
+                resultMessage = "project 업데이트!";
+            } else {
+                resultMessage = "변화 없음!";
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            if (pstmt != null)try {pstmt.close();} catch (SQLException ex) {}
+            if (conn != null)try {conn.close();    } catch (SQLException ex) {    }
+        }
+        return returns;
+
+    }
+
+    public static void main(String[] args) { // 서버가 실행될 때 자동으로  자정마다 프로젝트 기한 체크
+        // Calculate the delay until the next midnight
+        Calendar midnight = Calendar.getInstance();
+        midnight.add(Calendar.DAY_OF_MONTH, 1);
+        midnight.set(Calendar.HOUR_OF_DAY, 0);
+        midnight.set(Calendar.MINUTE, 0);
+        midnight.set(Calendar.SECOND, 0);
+        long delay = midnight.getTimeInMillis() - System.currentTimeMillis();
+
+        ConnectDB connectDBInstance = ConnectDB.getInstance();
+
+        // Create a timer task
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                // Perform your task here
+                connectDBInstance.updateProject();
+                System.out.println("Queries executed successfully.");
+            }
+        };
+
+        // Schedule the task to run at midnight daily
+        Timer timer = new Timer();
+        timer.schedule(task, delay, 24 * 60 * 60 * 1000); // 24 hours in milliseconds
+    }
+
+    public String getProjectName(int projectId) {
+        String name = " ";
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "SELECT name FROM project WHERE p_id = ?";
+
+            pstmt = conn.prepareStatement(sql);
+            pstmt.setInt(1, projectId);
+            rs = pstmt.executeQuery();
+
+            if (rs.next()) {
+                name = rs.getString("name");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return name;
+    }
+
+    public String getOrganizationInfo() { // 기관 조회
+        StringBuilder result = new StringBuilder();
+
+        try {
+            Class.forName("oracle.jdbc.driver.OracleDriver");
+            conn = DriverManager.getConnection(jdbcUrl, userOId, userPw);
+
+            sql = "SELECT name, image " +
+                    "FROM ORGANIZATION";
+
+            pstmt = conn.prepareStatement(sql);
+            rs = pstmt.executeQuery();
+
+            while (rs.next()) {
+                String orgName = rs.getString("name");
+                String orgImage = rs.getString("image");
+
+                result.append("Organization Name: ").append(orgName)
+                        .append(", Image: ").append(orgImage)
+                        .append("<br>");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            // Close resources
+            if (rs != null) try { rs.close(); } catch (SQLException ex) {}
+            if (pstmt != null) try { pstmt.close(); } catch (SQLException ex) {}
+            if (conn != null) try { conn.close(); } catch (SQLException ex) {}
+        }
+
+        return result.toString();
+    }
 
 }
