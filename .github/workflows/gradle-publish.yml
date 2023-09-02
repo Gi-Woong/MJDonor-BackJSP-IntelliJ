@@ -50,8 +50,8 @@ jobs:
         host: ${{ secrets.DEPLOY_SERVER_HOST }}
         username: ${{ secrets.DEPLOY_SERVER_USERNAME }}
         key: ${{ secrets.DEPLOY_SSH_KEY }} # SSH 키 사용
-        local_file: build/libs/webapp.war
-        remote_file: ${{ secrets.DEPLOY_SERVER_WAR_PATH }}
+        source: build/libs/webapp.war
+        target: ${{ secrets.DEPLOY_SERVER_WAR_PATH }}
         
     - name: SSH into Deployment Server
       uses: appleboy/ssh-action@master # SSH로 서버에 접속
