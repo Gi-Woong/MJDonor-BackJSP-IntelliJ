@@ -21,17 +21,21 @@
 ## Dependencies
 + **이미지**
   ```
-  implementation 'com.squareup.picasso:picasso:2.8' //이미지 서버 이미지 로드
-  implementation 'com.squareup.retrofit2:converter-scalars:2.5.0' //원본으로 이미지 서버 업로드
-  implementation 'com.squareup.retrofit2:adapter-rxjava:2.1.0'
-  implementation 'com.google.code.gson:gson:2.8.6'
-  implementation 'com.squareup.retrofit2:converter-gson:2.1.0'
-  implementation 'de.hdodenhof:circleimageview:2.2.0' //동그랗게 이미지 넣기
-  ```
+  implementation 'org.web3j:web3j-maven-plugin:4.9.8'
+  implementation 'org.slf4j:slf4j-simple:1.7.25' //logging
+
   
-+ **회원가입 Stepper**
-  ```
-  implementation 'com.github.shuhart:stepview:1.5.1'//회원가입 stepper
+  compileOnly('jakarta.servlet:jakarta.servlet-api:5.0.0')
+  implementation 'javax.servlet:jstl:1.2'
+
+  
+  implementation group: 'com.oracle.database.jdbc', name: 'ojdbc6', version: '11.2.0.4'
+
+  implementation("io.minio:minio:8.5.5")
+  implementation group: 'commons-fileupload', name: 'commons-fileupload', version: '1.5'
+  implementation group: 'com.googlecode.json-simple', name: 'json-simple', version: '1.1'
+  compileOnly group: 'javax.servlet', name: 'javax.servlet-api', version: '3.0.1'
+  implementation 'commons-codec:commons-codec:1.15'
   ```
 
 ## Demo
