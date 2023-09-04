@@ -19,7 +19,6 @@
 |[@KimSH39](https://github.com/KimSH39)|[@LeeSanghoon9999](https://github.com/LeeSanghoon9999)|[@dipito](https://github.com/Gi-Woong)|[@gus1043](https://github.com/gus1043)|
  
 ## Dependencies
-+ **이미지**
   ```
   implementation 'org.web3j:web3j-maven-plugin:4.9.8'
   implementation 'org.slf4j:slf4j-simple:1.7.25' //logging
